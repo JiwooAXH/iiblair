@@ -1,0 +1,152 @@
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local ZonesFolder = workspace.Map:FindFirstChild("Zones")
+local ESPParts = {}
+local currentZone = nil
+local lastUpdate = 0
+local updateInterval = 0.1 -- Updates every 0.2 seconds
+
+if not ZonesFolder then
+    warn("Zones folder not found! Check path.")
+    return
+end
+
+local function getPlayer()
+    return Players.LocalPlayer and Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+end
+
+local function formatTemp(value)
+    return string.format("%.2f", value)
+end
+
+local function formatDistance(value)
+    return string.format("%.1f", value)
+end
+
+local function isValidZone(zone)
+    if not zone:IsA("BasePart") then return false end
+    if not zone:FindFirstChild("_____Temperature") then return false end
+    if string.find(zone.Name:lower(), "outside") then return false end -- Exclude "Outside" zones
+    return true
+end
+
+local function findColdestValidZone()
+    local lowestTemp = math.huge
+    local coldestZone = nil
+    local coldestZoneName = "Unknown"
+
+    for _, zone in pairs(ZonesFolder:GetChildren()) do
+        if isValidZone(zone) then
+            local temp = zone._____Temperature.Value
+            if temp < lowestTemp then
+                lowestTemp = temp
+                coldestZone = zone
+                coldestZoneName = zone.Name
+            end
+        end
+    end
+
+    return coldestZone, lowestTemp, coldestZoneName
+end
+
+local function createESP(target)
+    if ESPParts["Box"] then ESPParts["Box"]:Destroy() end
+    if ESPParts["Label"] then ESPParts["Label"]:Destroy() end
+
+    -- Box ESP
+    local box = Instance.new("BoxHandleAdornment")
+    box.Adornee = target
+    box.Size = target.Size + Vector3.new(0.5, 0.5, 0.5)
+    box.Color3 = Color3.fromRGB(255, 255, 255) -- White
+    box.Transparency = 0.87 -- Opacity
+    box.AlwaysOnTop = true
+    box.ZIndex = 5
+    box.Parent = game.CoreGui
+    ESPParts["Box"] = box
+
+    -- Billboard Label
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = target
+    billboard.Size = UDim2.new(20, 0, 10, 0) -- Default large size
+    billboard.StudsOffset = Vector3.new(0, target.Size.Y + 2, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = game.CoreGui
+    ESPParts["Label"] = billboard
+
+    local function createTextLabel(parent, position, color, font, fontSize)
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 0.2, 0)
+        label.Position = position
+        label.BackgroundTransparency = 1
+        label.TextScaled = true
+        label.Font = font
+        label.TextStrokeTransparency = 0
+        label.TextColor3 = color
+        label.Parent = parent
+        return label
+    end
+
+    ESPParts["Title"] = createTextLabel(billboard, UDim2.new(0, 0, 0, 0), Color3.fromRGB(255, 102, 102), Enum.Font.GothamBold) -- Ghost Room (Big Bold Rose Red)
+    ESPParts["Zone"] = createTextLabel(billboard, UDim2.new(0, 0, 0.2, 0), Color3.fromRGB(255, 255, 255), Enum.Font.GothamBold) -- Zone Name (Big Bold White)
+    ESPParts["Temp"] = createTextLabel(billboard, UDim2.new(0, 0, 0.4, 0), Color3.fromRGB(100, 200, 255), Enum.Font.Gotham) -- Temp (Thin Light Blue)
+    ESPParts["Distance"] = createTextLabel(billboard, UDim2.new(0, 0, 0.6, 0), Color3.fromRGB(200, 200, 200), Enum.Font.Gotham) -- Distance (Thin Light Gray)
+end
+
+local function updateESP(target, temp, zoneName)
+    if not ESPParts["Label"] then return end
+
+    -- Distance Calculation
+    local player = getPlayer()
+    local distanceText = "?.?m"
+    local textScale = 1
+
+    if player then
+        local distance = (player.Position - target.Position).Magnitude
+        distanceText = formatDistance(distance) .. "m"
+
+        -- **Smooth Scaling Logic**
+        local minScale = 0.3  -- Smallest size (when close)
+        local maxScale = 7.0  -- Largest size (when far)
+        local maxDistance = 180  -- Distance where max size applies
+
+        local newScale = math.clamp(distance / maxDistance * maxScale, minScale, maxScale)
+
+        -- **Smooth Transition**
+        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        
+        -- Billboard Size
+        TweenService:Create(ESPParts["Label"], tweenInfo, {
+            Size = UDim2.new(9 * newScale, 0, 7 * newScale, 0)
+        }):Play()
+
+        -- Text Sizes
+        TweenService:Create(ESPParts["Title"], tweenInfo, { TextSize = 80 * newScale }):Play()
+        TweenService:Create(ESPParts["Zone"], tweenInfo, { TextSize = 55 * newScale }):Play()
+        TweenService:Create(ESPParts["Temp"], tweenInfo, { TextSize = 40 * newScale }):Play()
+        TweenService:Create(ESPParts["Distance"], tweenInfo, { TextSize = 30 * newScale }):Play()
+    end
+
+    -- Update Text
+    ESPParts["Title"].Text = "Ghost Room"
+    ESPParts["Zone"].Text = zoneName
+    ESPParts["Temp"].Text = "Temp: " .. formatTemp(temp) .. "°C"
+    ESPParts["Distance"].Text = "Distance: " .. distanceText
+end
+
+RunService.RenderStepped:Connect(function()
+    local now = tick()
+    if now - lastUpdate < updateInterval then return end
+    lastUpdate = now
+
+    local newZone, temp, zoneName = findColdestValidZone()
+
+    if newZone and newZone ~= currentZone then
+        currentZone = newZone
+        createESP(newZone)
+    end
+
+    if newZone then
+        updateESP(newZone, temp, zoneName)
+    end
+end)
