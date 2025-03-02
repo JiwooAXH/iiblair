@@ -1,0 +1,198 @@
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+if not player then return end
+
+local playerGui = player:FindFirstChildOfClass("PlayerGui") or Instance.new("PlayerGui", player)
+
+-- Destroy old GUI if it exists
+local oldGui = playerGui:FindFirstChild("GhostInfoGUI")
+if oldGui then oldGui:Destroy() end
+
+-- Create new GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "GhostInfoGUI"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+-- Main Frame (Draggable)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 30)
+mainFrame.Position = UDim2.new(1, -220, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = gui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0.8, 0, 1, 0)
+title.BackgroundTransparency = 1
+title.Text = "Ghost Info"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Position = UDim2.new(0.05, 0, 0, 0)
+title.Parent = mainFrame
+
+-- Toggle Button (Up/Down)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 30, 1, 0)
+toggleButton.Position = UDim2.new(1, -30, 0, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleButton.Text = "˄"
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 16
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
+
+-- Content Frame (Hidden on toggle)
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, 0, 0, 60)
+contentFrame.Position = UDim2.new(0, 0, 1, 0)
+contentFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+contentFrame.BackgroundTransparency = 0.4
+contentFrame.BorderSizePixel = 0
+contentFrame.ClipsDescendants = true
+contentFrame.Parent = mainFrame
+
+local contentCorner = Instance.new("UICorner")
+contentCorner.CornerRadius = UDim.new(0, 8)
+contentCorner.Parent = contentFrame
+
+-- Speed Label
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, 0, 0, 30)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: N/A"
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 14
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+speedLabel.Parent = contentFrame
+
+-- Salt Label
+local saltLabel = Instance.new("TextLabel")
+saltLabel.Size = UDim2.new(1, 0, 0, 30)
+saltLabel.Position = UDim2.new(0, 0, 0, 30)
+saltLabel.BackgroundTransparency = 1
+saltLabel.Text = "Salt: N/A"
+saltLabel.Font = Enum.Font.Gotham
+saltLabel.TextSize = 14
+saltLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+saltLabel.Parent = contentFrame
+
+-- Toggle Function
+local isExpanded = true
+toggleButton.MouseButton1Click:Connect(function()
+    isExpanded = not isExpanded
+    toggleButton.Text = isExpanded and "˄" or "˅"
+
+    local goalSize = isExpanded and UDim2.new(1, 0, 0, 60) or UDim2.new(1, 0, 0, 0)
+    local tween = TweenService:Create(contentFrame, TweenInfo.new(0.3), {Size = goalSize})
+    tween:Play()
+end)
+
+-- Speed Tracking
+local ghost
+local lastPosition
+local speedSamples = {}
+local updateInterval = 0.2
+local lastUpdate = tick()
+
+RunService.Heartbeat:Connect(function()
+    if not ghost or not ghost.Parent then
+        ghost = workspace:FindFirstChild("Ghost")
+        if ghost and ghost:IsA("Model") and ghost.PrimaryPart then
+            lastPosition = ghost.PrimaryPart.Position
+            speedSamples = {}
+            wait(3)
+        else
+            speedLabel.Text = "Speed: N/A"
+            return
+        end
+    end
+
+    if tick() - lastUpdate >= updateInterval then
+        lastUpdate = tick()
+        if ghost and ghost.PrimaryPart then
+            local currentPosition = ghost.PrimaryPart.Position
+            local speed = (currentPosition - lastPosition).Magnitude / updateInterval
+
+            table.insert(speedSamples, speed)
+            if #speedSamples > 5 then table.remove(speedSamples, 1) end
+
+            local sum = 0
+            for _, s in ipairs(speedSamples) do sum = sum + s end
+            local averageSpeed = sum / #speedSamples
+
+            speedLabel.Text = "Speed: " .. math.floor(averageSpeed)
+            lastPosition = currentPosition
+        end
+    end
+end)
+
+-- Salt Detection
+RunService.Heartbeat:Connect(function()
+    local saltStepped = false
+    local miscFolder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Misc")
+
+    if miscFolder then
+        for _, child in ipairs(miscFolder:GetChildren()) do
+            if child.Name == "SaltStepped" then
+                saltStepped = true
+                break
+            end
+        end
+    end
+
+    saltLabel.Text = "Salt: " .. (saltStepped and "Stepped" or "N/A")
+end)
+
+-- Small Hide Button
+local hideButton = Instance.new("TextButton")
+hideButton.Size = UDim2.new(0, 50, 0, 30)
+hideButton.Position = UDim2.new(0, 10, 0.5, -15)
+hideButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+hideButton.BackgroundTransparency = 0.3
+hideButton.Text = "Hide"
+hideButton.Font = Enum.Font.GothamBold
+hideButton.TextSize = 14
+hideButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+hideButton.Parent = gui
+hideButton.Active = true
+hideButton.Draggable = true
+
+local hideCorner = Instance.new("UICorner")
+hideCorner.CornerRadius = UDim.new(1, 0)
+hideCorner.Parent = hideButton
+
+local isGuiVisible = true
+hideButton.MouseButton1Click:Connect(function()
+    isGuiVisible = not isGuiVisible
+    mainFrame.Visible = isGuiVisible
+    hideButton.Text = isGuiVisible and "Hide" or "Show"
+end)
+
+-- Hotkey Function (K to Toggle GUI)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.K then
+        isGuiVisible = not isGuiVisible
+        mainFrame.Visible = isGuiVisible
+        hideButton.Text = isGuiVisible and "Hide" or "Show"
+    end
+end)
