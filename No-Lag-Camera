@@ -1,40 +1,32 @@
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
-local function monitorPlayer(player)
-    local function removeGuiFromCamera(camera)
-        if camera and camera:IsA("Model") then
+local function removeGui(player)
+    local playerFolder = Workspace:FindFirstChild(player.Name)
+    if playerFolder then
+        local camera = playerFolder:FindFirstChild("Photo Camera")
+        if camera then
             local gui = camera:FindFirstChild("PictureGui")
             if gui then
                 gui:Destroy()
             end
         end
     end
-
-    local function checkCharacter(character)
-        -- Monitor existing Photo Camera
-        local camera = character:FindFirstChild("Photo Camera")
-        if camera then
-            removeGuiFromCamera(camera)
-        end
-
-        -- Listen for new Photo Camera being added in real-time
-        character.ChildAdded:Connect(function(child)
-            if child.Name == "Photo Camera" then
-                removeGuiFromCamera(child)
-            end
-        end)
-    end
-
-    -- Detect when the player spawns
-    player.CharacterAdded:Connect(checkCharacter)
-
-    -- Check if the player already has a character loaded
-    if player.Character then
-        checkCharacter(player.Character)
-    end
 end
 
--- Monitor all current and new players
+local function monitorPlayer(player)
+    player.CharacterAdded:Connect(function()
+        removeGui(player)
+    end)
+
+    task.spawn(function()
+        while player and player.Parent do
+            removeGui(player)
+            task.wait(0.5)
+        end
+    end)
+end
+
 Players.PlayerAdded:Connect(monitorPlayer)
 for _, player in ipairs(Players:GetPlayers()) do
     monitorPlayer(player)
