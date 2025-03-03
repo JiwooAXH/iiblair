@@ -1,0 +1,35 @@
+-- Infinite Stamina
+-- Tablet 
+-- Kit: The Wimp
+
+local player = game:GetService("Players").LocalPlayer
+
+-- Function to check if an instance exists and wait for it
+local function waitForProperty(instance, property)
+    while not instance:FindFirstChild(property) do
+        instance.ChildAdded:Wait()
+    end
+    return instance[property]
+end
+
+-- Ensure DoubleStamina is detected in real-time and toggle 10 times
+task.spawn(function()
+    local doubleStamina = waitForProperty(player, "DoubleStamina")
+    for _ = 1, 10 do
+        doubleStamina.Value = not doubleStamina.Value
+        task.wait(0.5) -- Small delay to ensure toggling is processed
+    end
+    doubleStamina.Value = true -- Ensure it's always enabled at the end
+end)
+
+-- Ensure Kit is detected in real-time and set its value
+task.spawn(function()
+    local kit = waitForProperty(player, "Kit")
+    kit.Value = "The Wimp"
+end)
+
+-- Ensure Tablet is detected in real-time and always enabled
+task.spawn(function()
+    local tablet = waitForProperty(player, "Tablet")
+    tablet.Value = true
+end)
