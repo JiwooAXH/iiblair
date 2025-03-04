@@ -22,12 +22,6 @@ task.spawn(function()
     doubleStamina.Value = true -- Ensure it's always enabled at the end
 end)
 
--- Ensure Kit is detected in real-time and set its value
-task.spawn(function()
-    local kit = waitForProperty(player, "Kit")
-    kit.Value = "The Wimp"
-end)
-
 -- Ensure Tablet is detected in real-time and always enabled
 task.spawn(function()
     local tablet = waitForProperty(player, "Tablet")
