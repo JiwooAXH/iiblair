@@ -131,7 +131,7 @@ updateLabels()
 task.spawn(function()
     while true do
         updateLabels()
-        task.wait(1) -- Check every second
+        task.wait() -- Check every second
     end
 end)
 
