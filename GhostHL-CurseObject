@@ -1,0 +1,81 @@
+-- MADE BY JIWOO
+local function createLabel(object, labelText, textColor)
+    if object then
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Adornee = object
+        billboardGui.Size = UDim2.new(0, 100, 0, 50)
+        billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+        billboardGui.AlwaysOnTop = true
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Parent = billboardGui
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = labelText
+        textLabel.TextColor3 = textColor
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.TextSize = 10
+
+        billboardGui.Parent = object
+        return textLabel
+    else
+        warn("Object not found for label: " .. tostring(labelText))
+    end
+end
+
+local function maintainGhostHighlight()
+    while task.wait(0.1) do
+        local ghostHighlight = workspace:FindFirstChild("Ghost") and workspace.Ghost:FindFirstChild("Highlight")
+        if ghostHighlight then
+            ghostHighlight.Enabled = true
+        end
+    end
+end
+
+task.spawn(maintainGhostHighlight)
+
+local function createLabels()
+    local objects = {
+        {name = "Spirit Board", path = workspace, color = Color3.fromRGB(218, 165, 32), label = "Ouija"},
+        {name = "SummoningCircle", path = workspace, color = Color3.fromRGB(255, 0, 0), label = "Summoning Circle"},
+        {name = "Tarot Cards", path = workspace.Map.Items, color = Color3.fromRGB(148, 0, 211), label = "Tarot"},
+    }
+
+    for _, obj in ipairs(objects) do
+        local foundObject = obj.path:FindFirstChild(obj.name)
+        if foundObject then
+            createLabel(foundObject, obj.label, obj.color)
+        else
+            warn("Object not found: " .. obj.name)
+        end
+    end
+
+    local generatorMesh = workspace.Map.Generators:FindFirstChild("GeneratorMesh")
+    if generatorMesh then
+        createLabel(generatorMesh, "Generator", Color3.fromRGB(255, 255, 255))
+    else
+        warn("GeneratorMesh not found in workspace.Map.Generators")
+    end
+
+    -- BooBoo Doll Label with Smooth Color Transition
+    local booBooDoll = workspace:FindFirstChild("BooBooDoll")
+    if booBooDoll then
+        local booBooLabel = createLabel(booBooDoll, "BooBoo Doll", Color3.fromRGB(200, 162, 200))
+
+        task.spawn(function()
+            local color1 = Color3.fromRGB(200, 162, 200)
+            local color2 = Color3.fromRGB(148, 0, 211)
+            local t = 0
+
+            while true do
+                t = (math.sin(tick() * 2) + 1) / 2
+                booBooLabel.TextColor3 = color1:Lerp(color2, t)
+                task.wait(0.1)
+            end
+        end)
+    else
+        warn("BooBoo Doll not found in workspace")
+    end
+end
+
+createLabels()
