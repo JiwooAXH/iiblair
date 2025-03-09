@@ -1,0 +1,78 @@
+local Lighting = game:GetService("Lighting")
+
+if not _G.FullBrightExecuted then
+    _G.FullBrightExecuted = true
+    _G.FullBrightEnabled = false
+
+    local NormalLightingSettings = {
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        FogEnd = Lighting.FogEnd,
+        GlobalShadows = Lighting.GlobalShadows,
+        Ambient = Lighting.Ambient
+    }
+
+    local function setFullBright()
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 12
+        Lighting.FogEnd = 1e6 -- Ensures fog is completely removed
+        Lighting.GlobalShadows = false
+        Lighting.Ambient = Color3.fromRGB(178, 178, 178)
+
+        -- Remove fog and weather effects
+        for _, obj in ipairs(Lighting:GetChildren()) do
+            if obj:IsA("Atmosphere") or obj:IsA("DepthOfFieldEffect") or obj:IsA("BloomEffect") or obj:IsA("ColorCorrectionEffect") then
+                obj:Destroy()
+            elseif obj:IsA("Clouds") then
+                obj.Enabled = false
+            end
+        end
+    end
+
+    local function resetProperties()
+        for k, v in pairs(NormalLightingSettings) do
+            Lighting[k] = v
+        end
+    end
+
+    local function monitorLightingProperty(propertyName, defaultValue)
+        Lighting:GetPropertyChangedSignal(propertyName):Connect(function()
+            if Lighting[propertyName] ~= defaultValue then
+                repeat task.wait() until _G.FullBrightEnabled
+                Lighting[propertyName] = defaultValue
+            end
+        end)
+    end
+
+    monitorLightingProperty("Brightness", 1)
+    monitorLightingProperty("ClockTime", 12)
+    monitorLightingProperty("FogEnd", 1e6)
+    monitorLightingProperty("GlobalShadows", false)
+    monitorLightingProperty("Ambient", Color3.fromRGB(178, 178, 178))
+
+    local function handleAtmosphere(instance)
+        if instance:IsA("Atmosphere") or instance:IsA("DepthOfFieldEffect") or instance:IsA("BloomEffect") or instance:IsA("ColorCorrectionEffect") then
+            instance:Destroy()
+        elseif instance:IsA("Clouds") then
+            instance.Enabled = false
+        end
+    end
+
+    for _, v in ipairs(Lighting:GetDescendants()) do
+        handleAtmosphere(v)
+    end
+
+    Lighting.DescendantAdded:Connect(handleAtmosphere)
+
+    task.spawn(function()
+        while task.wait(1) do
+            if _G.FullBrightEnabled then
+                setFullBright()
+            else
+                resetProperties()
+            end
+        end
+    end)
+end
+
+_G.FullBrightEnabled = not _G.FullBrightEnabled
