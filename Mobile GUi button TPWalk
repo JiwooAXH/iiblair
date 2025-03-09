@@ -1,0 +1,133 @@
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Destroy previous GUI if it exists
+local oldGui = game.CoreGui:FindFirstChild("TpwalkGUI")
+if oldGui then
+    oldGui:Destroy()
+end
+
+-- Player Variables
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Tpwalk Variables
+local TpwalkSpeed = 0.3
+local TpwalkConnection
+local isHolding = false
+local isDragging = false
+
+-- Ensure it's only for mobile
+if not UserInputService.TouchEnabled then
+    return
+end
+
+-- Create GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TpwalkGUI"
+screenGui.Parent = game.CoreGui
+
+local button = Instance.new("TextButton")
+button.Parent = screenGui
+button.Size = UDim2.new(0, 60, 0, 30) -- Small, modern button
+button.Position = UDim2.new(1, -80, 0.5, -15) -- Right side, centered vertically
+button.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Dark mode
+button.Text = ""
+button.AutoButtonColor = false
+button.BorderSizePixel = 0
+button.BackgroundTransparency = 0.2
+button.TextSize = 14
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.Gotham
+button.ClipsDescendants = true
+
+-- Rounded corners
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 6) -- Small rounded corners
+UICorner.Parent = button
+
+-- Function to update character references after respawn
+local function updateCharacter(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+end
+
+-- Connect to character respawn
+localPlayer.CharacterAdded:Connect(updateCharacter)
+
+-- Dragging Functionality
+local dragStart, startPos
+local function startDragging(input)
+    isDragging = true
+    dragStart = input.Position
+    startPos = button.Position
+end
+
+local function updateDragging(input)
+    if isDragging then
+        local delta = input.Position - dragStart
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end
+
+local function stopDragging()
+    isDragging = false
+end
+
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        startDragging(input)
+    end
+end)
+
+button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        updateDragging(input)
+    end
+end)
+
+button.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        stopDragging()
+    end
+end)
+
+-- Tpwalk Activation
+local function startTpwalk()
+    if TpwalkConnection then return end
+    TpwalkConnection = RunService.RenderStepped:Connect(function()
+        if humanoid and rootPart then
+            local moveDirection = humanoid.MoveDirection
+            if moveDirection.Magnitude > 0 then
+                rootPart.CFrame = rootPart.CFrame + (moveDirection * TpwalkSpeed)
+            end
+        end
+    end)
+end
+
+local function stopTpwalk()
+    if TpwalkConnection then
+        TpwalkConnection:Disconnect()
+        TpwalkConnection = nil
+    end
+end
+
+-- GUI Button Hold for Mobile
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch and not isDragging then
+        isHolding = true
+        startTpwalk()
+    end
+end)
+
+button.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        isHolding = false
+        stopTpwalk()
+    end
+end)
