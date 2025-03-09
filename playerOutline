@@ -1,0 +1,46 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Remove existing highlights
+for _, player in ipairs(Players:GetPlayers()) do
+    if player.Character then
+        local existingHighlight = player.Character:FindFirstChildOfClass("Highlight")
+        if existingHighlight then
+            existingHighlight:Destroy()
+        end
+    end
+end
+
+local function applyOutline(player)
+    if player == LocalPlayer then return end -- Exclude local player
+
+    local function onCharacterAdded(character)
+        character:WaitForChild("HumanoidRootPart")
+
+        -- Remove old highlight if it exists
+        local oldHighlight = character:FindFirstChildOfClass("Highlight")
+        if oldHighlight then
+            oldHighlight:Destroy()
+        end
+
+        -- Apply new outline
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = character
+        highlight.FillTransparency = 1 -- Transparent body, only outline
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- White outline
+        highlight.OutlineTransparency = 0.5 -- Adjusted for a thinner effect
+        highlight.Parent = character
+    end
+
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+
+    player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    applyOutline(player)
+end
+
+Players.PlayerAdded:Connect(applyOutline)
