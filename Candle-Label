@@ -22,7 +22,7 @@ local function createLabel(obj, labelText)
     billboard.Size = UDim2.new(0, 50, 0, 30)
     billboard.StudsOffset = Vector3.new(0, 2, 0) -- Adjusted for visibility
     billboard.AlwaysOnTop = true
-    billboard.MaxDistance = 150
+    billboard.MaxDistance = 250
     billboard.Parent = obj
 
     local textLabel = Instance.new("TextLabel")
