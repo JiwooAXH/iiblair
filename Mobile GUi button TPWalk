@@ -16,7 +16,7 @@ local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Tpwalk Variables
-local TpwalkSpeed = 0.3
+local TpwalkSpeed = 1.3
 local TpwalkConnection
 local isHolding = false
 local isDragging = false
