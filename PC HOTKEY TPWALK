@@ -1,0 +1,182 @@
+-- Destroy previous script and GUI if executed again
+if _G.TpwalkScriptInstance then
+    _G.TpwalkScriptInstance:Destroy()
+end
+_G.TpwalkScriptInstance = script
+
+if _G.TpwalkGuiInstance then
+    _G.TpwalkGuiInstance:Destroy()
+end
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Player Variables
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Variables
+local TpwalkSpeed = 0.3
+local TpwalkActive = false
+local GuiVisible = true
+local TpwalkKey = Enum.KeyCode.LeftShift
+
+-- Function to Handle Tpwalk
+local function updateTpwalk()
+    while UserInputService:IsKeyDown(TpwalkKey) do
+        if humanoid and rootPart then
+            local moveDirection = humanoid.MoveDirection
+            if moveDirection.Magnitude > 0 then
+                rootPart.CFrame = rootPart.CFrame + (moveDirection * TpwalkSpeed)
+            end
+        end
+        task.wait()
+    end
+end
+
+-- Detect Key Hold and Release
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == TpwalkKey and not gameProcessed then
+        if not TpwalkActive then
+            TpwalkActive = true
+            task.spawn(updateTpwalk)
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == TpwalkKey then
+        TpwalkActive = false
+    end
+end)
+
+-- Reconnect on Character Reset
+localPlayer.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+end)
+
+-- GUI Creation (PC ONLY)
+if not UserInputService.TouchEnabled then
+    local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+    local Frame = Instance.new("Frame")
+    local SpeedTextBox = Instance.new("TextBox")
+    local HotkeyTextBox = Instance.new("TextBox")
+    local UIStroke = Instance.new("UIStroke")
+    local UICorner = Instance.new("UICorner")
+    local SpeedLabel = Instance.new("TextLabel")
+    local HotkeyLabel = Instance.new("TextLabel")
+    local ToggleLabel = Instance.new("TextLabel")
+
+    _G.TpwalkGuiInstance = ScreenGui
+
+    ScreenGui.ResetOnSpawn = false
+
+    Frame.Size = UDim2.new(0, 180, 0, 100)
+    Frame.Position = UDim2.new(0.5, -90, 0.5, -50)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Frame.Active = true
+    Frame.Draggable = true
+    Frame.Parent = ScreenGui
+
+    UICorner.CornerRadius = UDim.new(0, 10)
+    UICorner.Parent = Frame
+
+    UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    UIStroke.Thickness = 2
+    UIStroke.Color = Color3.fromRGB(50, 50, 50)
+    UIStroke.Parent = Frame
+
+    SpeedLabel.Text = "Speed:"
+    SpeedLabel.TextSize = 16
+    SpeedLabel.Size = UDim2.new(0, 50, 0, 25)
+    SpeedLabel.Position = UDim2.new(0, 10, 0, 10)
+    SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    SpeedLabel.BackgroundTransparency = 1
+    SpeedLabel.Font = Enum.Font.SourceSans
+    SpeedLabel.Parent = Frame
+
+    SpeedTextBox.Size = UDim2.new(0, 80, 0, 25)
+    SpeedTextBox.Position = UDim2.new(0, 65, 0, 10)
+    SpeedTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    SpeedTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SpeedTextBox.Font = Enum.Font.SourceSans
+    SpeedTextBox.PlaceholderText = "0.3"
+    SpeedTextBox.Text = tostring(TpwalkSpeed)
+    SpeedTextBox.TextSize = 14
+    SpeedTextBox.Parent = Frame
+
+    HotkeyLabel.Text = "Hotkey:"
+    HotkeyLabel.TextSize = 16
+    HotkeyLabel.Size = UDim2.new(0, 50, 0, 25)
+    HotkeyLabel.Position = UDim2.new(0, 10, 0, 40)
+    HotkeyLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    HotkeyLabel.BackgroundTransparency = 1
+    HotkeyLabel.Font = Enum.Font.SourceSans
+    HotkeyLabel.Parent = Frame
+
+    HotkeyTextBox.Size = UDim2.new(0, 80, 0, 25)
+    HotkeyTextBox.Position = UDim2.new(0, 65, 0, 40)
+    HotkeyTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    HotkeyTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HotkeyTextBox.Font = Enum.Font.SourceSans
+    HotkeyTextBox.PlaceholderText = "LeftShift"
+    HotkeyTextBox.Text = "LeftShift"
+    HotkeyTextBox.TextSize = 14
+    HotkeyTextBox.Parent = Frame
+
+    ToggleLabel.Text = 'Press "L" to hide & show this GUI'
+    ToggleLabel.TextSize = 14
+    ToggleLabel.Size = UDim2.new(1, -10, 0, 20)
+    ToggleLabel.Position = UDim2.new(0, 5, 1, -25)
+    ToggleLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Font = Enum.Font.SourceSans
+    ToggleLabel.Parent = Frame
+
+    UICorner:Clone().Parent = SpeedTextBox
+    UICorner:Clone().Parent = HotkeyTextBox
+
+    -- Update Speed on Input
+    SpeedTextBox.FocusLost:Connect(function()
+        local newSpeed = tonumber(SpeedTextBox.Text)
+        if newSpeed and newSpeed > 0 then
+            TpwalkSpeed = newSpeed
+        else
+            SpeedTextBox.Text = tostring(TpwalkSpeed)
+        end
+    end)
+
+    -- Update Hotkey on Input
+    HotkeyTextBox.FocusLost:Connect(function()
+        local inputKey = HotkeyTextBox.Text
+        if Enum.KeyCode[inputKey] then
+            TpwalkKey = Enum.KeyCode[inputKey]
+        else
+            HotkeyTextBox.Text = "LeftShift"
+            TpwalkKey = Enum.KeyCode.LeftShift
+        end
+    end)
+
+    -- Toggle GUI Visibility with "L" Key
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if input.KeyCode == Enum.KeyCode.L and not gameProcessed then
+            GuiVisible = not GuiVisible
+            Frame.Visible = GuiVisible
+        end
+    end)
+
+    -- Destroy Script and GUI on Re-execution
+    script.Destroying:Connect(function()
+        _G.TpwalkScriptRunning = nil
+        if _G.TpwalkGuiInstance then
+            _G.TpwalkGuiInstance:Destroy()
+            _G.TpwalkGuiInstance = nil
+        end
+    end)
+end
