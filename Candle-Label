@@ -1,0 +1,148 @@
+local parentPath = workspace.Map.Candles
+local labels = {} -- Store active labels
+local objectTimers = {} -- Store timers for each object
+
+-- Function to format time as "MM:SS"
+local function formatTime(seconds)
+    local minutes = math.floor(seconds / 60)
+    local remainingSeconds = seconds % 60
+    if minutes > 0 then
+        return string.format("%d:%02d", minutes, remainingSeconds)
+    else
+        return string.format("%ds", remainingSeconds)
+    end
+end
+
+-- Function to create and animate label
+local function createLabel(obj, labelText)
+    if labels[obj] then return end -- Prevent duplicates
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = obj
+    billboard.Size = UDim2.new(0, 50, 0, 30)
+    billboard.StudsOffset = Vector3.new(0, 2, 0) -- Adjusted for visibility
+    billboard.AlwaysOnTop = true
+    billboard.MaxDistance = 150
+    billboard.Parent = obj
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Parent = billboard
+    textLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = labelText
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.TextSize = 10
+    textLabel.TextStrokeTransparency = 0.5
+
+    local timeLabel = Instance.new("TextLabel")
+    timeLabel.Parent = billboard
+    timeLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    timeLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    timeLabel.BackgroundTransparency = 1
+    timeLabel.Font = Enum.Font.GothamBold
+    timeLabel.TextSize = 10
+    timeLabel.TextStrokeTransparency = 0.5
+    timeLabel.TextColor3 = Color3.new(1, 1, 1) -- Always white
+
+    labels[obj] = { gui = billboard, label = textLabel, timer = timeLabel }
+    objectTimers[obj] = 0 -- Start timer at 0 seconds
+
+    -- Flame Color Animation (Flickering Effect)
+    task.spawn(function()
+        local colors = {
+            Color3.fromRGB(255, 140, 0), -- Deep Orange
+            Color3.fromRGB(255, 165, 0), -- Orange
+            Color3.fromRGB(255, 215, 0), -- Golden Yellow
+            Color3.fromRGB(255, 180, 30) -- Soft Yellow-Orange
+        }
+        
+        while labels[obj] and billboard.Parent do
+            for _, color in ipairs(colors) do
+                if labels[obj] then
+                    textLabel.TextColor3 = color
+                else
+                    return
+                end
+                task.wait(0.15) -- Smooth flickering effect
+            end
+        end
+    end)
+
+    -- Timer Update (White Text)
+    task.spawn(function()
+        while labels[obj] and billboard.Parent do
+            objectTimers[obj] = objectTimers[obj] + 1
+            timeLabel.Text = "Time: " .. formatTime(objectTimers[obj])
+            task.wait(1) -- Update every second
+        end
+    end)
+end
+
+-- Function to check for Lights with "IsIgnited"
+local function checkLight(light)
+    if light:IsA("Model") then
+        local isIgnited = light:FindFirstChild("IsIgnited")
+        if isIgnited and isIgnited:IsA("BoolValue") and isIgnited.Value then
+            if not labels[light] then
+                createLabel(light, "Light")
+            end
+        else
+            -- Remove label if IsIgnited is false or missing
+            if labels[light] then
+                labels[light].gui:Destroy()
+                labels[light] = nil
+                objectTimers[light] = nil
+            end
+        end
+    end
+end
+
+-- Function to check for Candles with "IsIgnited"
+local function checkCandle(candle)
+    if candle:IsA("BasePart") then
+        local isIgnited = candle:FindFirstChild("IsIgnited")
+        if isIgnited and isIgnited:IsA("BoolValue") and isIgnited.Value then
+            if not labels[candle] then
+                createLabel(candle, "Candle")
+            end
+        else
+            -- Remove label if IsIgnited is false or missing
+            if labels[candle] then
+                labels[candle].gui:Destroy()
+                labels[candle] = nil
+                objectTimers[candle] = nil
+            end
+        end
+    end
+end
+
+-- Function to update all objects in real-time
+local function updateLabels()
+    for _, obj in ipairs(parentPath:GetChildren()) do
+        checkLight(obj)
+        checkCandle(obj)
+    end
+end
+
+-- Initial check
+updateLabels()
+
+-- Continuous real-time detection
+task.spawn(function()
+    while true do
+        updateLabels()
+        task.wait(1) -- Check every second
+    end
+end)
+
+-- Real-time detection when new objects are added
+parentPath.ChildAdded:Connect(function(obj)
+    checkLight(obj)
+    checkCandle(obj)
+
+    -- Also listen for Candle being added inside Light
+    obj.ChildAdded:Connect(function()
+        checkLight(obj)
+        checkCandle(obj)
+    end)
+end)
