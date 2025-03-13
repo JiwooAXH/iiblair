@@ -1,11 +1,13 @@
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local Camera = workspace.CurrentCamera
 local ZonesFolder = workspace.Map:FindFirstChild("Zones")
+
 local ESPParts = {}
 local currentZone = nil
 local lastUpdate = 0
-local updateInterval = 0.1 -- Updates every 0.2 seconds
+local updateInterval = 0.01 -- Updates every 0.1 seconds
 
 if not ZonesFolder then
     warn("Zones folder not found! Check path.")
@@ -25,16 +27,12 @@ local function formatDistance(value)
 end
 
 local function isValidZone(zone)
-    if not zone:IsA("BasePart") then return false end
-    if not zone:FindFirstChild("_____Temperature") then return false end
-    if string.find(zone.Name:lower(), "outside") then return false end -- Exclude "Outside" zones
-    return true
+    return zone:IsA("BasePart") and zone:FindFirstChild("_____Temperature") and not string.find(zone.Name:lower(), "outside")
 end
 
 local function findColdestValidZone()
     local lowestTemp = math.huge
-    local coldestZone = nil
-    local coldestZoneName = "Unknown"
+    local coldestZone, coldestZoneName = nil, "Unknown"
 
     for _, zone in pairs(ZonesFolder:GetChildren()) do
         if isValidZone(zone) then
@@ -46,29 +44,37 @@ local function findColdestValidZone()
             end
         end
     end
-
     return coldestZone, lowestTemp, coldestZoneName
 end
 
 local function createESP(target)
-    if ESPParts["Box"] then ESPParts["Box"]:Destroy() end
-    if ESPParts["Label"] then ESPParts["Label"]:Destroy() end
+    -- Clear old ESP
+    for _, part in pairs(ESPParts) do
+        if typeof(part) == "table" then
+            for _, line in pairs(part) do
+                line:Remove()
+            end
+        else
+            part:Destroy()
+        end
+    end
+    ESPParts = {}
 
-    -- Box ESP
-    local box = Instance.new("BoxHandleAdornment")
-    box.Adornee = target
-    box.Size = target.Size + Vector3.new(0.5, 0.5, 0.5)
-    box.Color3 = Color3.fromRGB(255, 255, 255) -- White
-    box.Transparency = 0.87 -- Opacity
-    box.AlwaysOnTop = true
-    box.ZIndex = 5
-    box.Parent = game.CoreGui
-    ESPParts["Box"] = box
+    -- Create 3D Box Outline
+    local lines = {}
+    for i = 1, 12 do
+        local line = Drawing.new("Line")
+        line.Color = Color3.fromRGB(255, 255, 255)
+        line.Thickness = 1.5
+        table.insert(lines, line)
+    end
+    ESPParts["Lines"] = lines
+    ESPParts["Target"] = target
 
-    -- Billboard Label
+    -- Create Billboard GUI
     local billboard = Instance.new("BillboardGui")
     billboard.Adornee = target
-    billboard.Size = UDim2.new(20, 0, 10, 0) -- Default large size
+    billboard.Size = UDim2.new(8, 0, 4, 0) -- Default size
     billboard.StudsOffset = Vector3.new(0, target.Size.Y + 2, 0)
     billboard.AlwaysOnTop = true
     billboard.Parent = game.CoreGui
@@ -87,51 +93,77 @@ local function createESP(target)
         return label
     end
 
-    ESPParts["Title"] = createTextLabel(billboard, UDim2.new(0, 0, 0, 0), Color3.fromRGB(255, 102, 102), Enum.Font.GothamBold) -- Ghost Room (Big Bold Rose Red)
-    ESPParts["Zone"] = createTextLabel(billboard, UDim2.new(0, 0, 0.2, 0), Color3.fromRGB(255, 255, 255), Enum.Font.GothamBold) -- Zone Name (Big Bold White)
-    ESPParts["Temp"] = createTextLabel(billboard, UDim2.new(0, 0, 0.4, 0), Color3.fromRGB(100, 200, 255), Enum.Font.Gotham) -- Temp (Thin Light Blue)
-    ESPParts["Distance"] = createTextLabel(billboard, UDim2.new(0, 0, 0.6, 0), Color3.fromRGB(200, 200, 200), Enum.Font.Gotham) -- Distance (Thin Light Gray)
+    ESPParts["Title"] = createTextLabel(billboard, UDim2.new(0, 0, 0, 0), Color3.fromRGB(255, 102, 102), Enum.Font.GothamBold) -- "Ghost Room"
+    ESPParts["Zone"] = createTextLabel(billboard, UDim2.new(0, 0, 0.2, 0), Color3.fromRGB(255, 255, 255), Enum.Font.GothamBold) -- Zone Name
+    ESPParts["Temp"] = createTextLabel(billboard, UDim2.new(0, 0, 0.4, 0), Color3.fromRGB(100, 200, 255), Enum.Font.Gotham) -- Temperature
+    ESPParts["Distance"] = createTextLabel(billboard, UDim2.new(0, 0, 0.6, 0), Color3.fromRGB(200, 200, 200), Enum.Font.Gotham) -- Distance
 end
 
 local function updateESP(target, temp, zoneName)
-    if not ESPParts["Label"] then return end
-
-    -- Distance Calculation
     local player = getPlayer()
-    local distanceText = "?.?m"
-    local textScale = 1
+    if not player or not ESPParts["Lines"] or not target then return end
 
-    if player then
+    -- Get corner positions of the ghost room box
+    local size = target.Size * 0.5
+    local position = target.Position
+    local corners = {
+        position + Vector3.new(-size.X, -size.Y, -size.Z),
+        position + Vector3.new(size.X, -size.Y, -size.Z),
+        position + Vector3.new(size.X, -size.Y, size.Z),
+        position + Vector3.new(-size.X, -size.Y, size.Z),
+        position + Vector3.new(-size.X, size.Y, -size.Z),
+        position + Vector3.new(size.X, size.Y, -size.Z),
+        position + Vector3.new(size.X, size.Y, size.Z),
+        position + Vector3.new(-size.X, size.Y, size.Z)
+    }
+
+    local projectedCorners = {}
+    local onScreen = false
+    for i, corner in pairs(corners) do
+        local vector, visible = Camera:WorldToViewportPoint(corner)
+        projectedCorners[i] = vector
+        if visible then onScreen = true end
+    end
+
+    if onScreen then
+        local lines = ESPParts["Lines"]
+        local edges = {
+            {1, 2}, {2, 3}, {3, 4}, {4, 1}, -- Bottom square
+            {5, 6}, {6, 7}, {7, 8}, {8, 5}, -- Top square
+            {1, 5}, {2, 6}, {3, 7}, {4, 8}  -- Vertical lines
+        }
+
+        for i, edge in pairs(edges) do
+            local from = projectedCorners[edge[1]]
+            local to = projectedCorners[edge[2]]
+            lines[i].From = Vector2.new(from.X, from.Y)
+            lines[i].To = Vector2.new(to.X, to.Y)
+            lines[i].Visible = true
+        end
+
+        -- Distance calculation and fade effect
         local distance = (player.Position - target.Position).Magnitude
-        distanceText = formatDistance(distance) .. "m"
+        local fadeFactor = math.clamp(distance / 50, 0, 20) -- Fades when close
+        for _, line in pairs(lines) do
+            line.Transparency = fadeFactor
+        end
 
-        -- **Smooth Scaling Logic**
-        local minScale = 0.3  -- Smallest size (when close)
-        local maxScale = 7.0  -- Largest size (when far)
-        local maxDistance = 180  -- Distance where max size applies
-
-        local newScale = math.clamp(distance / maxDistance * maxScale, minScale, maxScale)
-
-        -- **Smooth Transition**
-        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        
-        -- Billboard Size
-        TweenService:Create(ESPParts["Label"], tweenInfo, {
+        -- Billboard Scaling
+        local newScale = math.clamp(distance / 180 * 7.0, 0.3, 7.0)
+        TweenService:Create(ESPParts["Label"], TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(9 * newScale, 0, 7 * newScale, 0)
         }):Play()
 
-        -- Text Sizes
-        TweenService:Create(ESPParts["Title"], tweenInfo, { TextSize = 80 * newScale }):Play()
-        TweenService:Create(ESPParts["Zone"], tweenInfo, { TextSize = 55 * newScale }):Play()
-        TweenService:Create(ESPParts["Temp"], tweenInfo, { TextSize = 40 * newScale }):Play()
-        TweenService:Create(ESPParts["Distance"], tweenInfo, { TextSize = 30 * newScale }):Play()
+        -- Text Updates
+        ESPParts["Title"].Text = "Ghost Room"
+        ESPParts["Zone"].Text = zoneName
+        ESPParts["Temp"].Text = "Temp: " .. formatTemp(temp) .. "°C"
+        ESPParts["Distance"].Text = "Dist: " .. formatDistance(distance) .. "m"
+    else
+        for _, line in pairs(ESPParts["Lines"]) do
+            line.Visible = false
+        end
     end
-
-    -- Update Text
-    ESPParts["Title"].Text = "Ghost Room"
-    ESPParts["Zone"].Text = zoneName
-    ESPParts["Temp"].Text = "Temp: " .. formatTemp(temp) .. "°C"
-    ESPParts["Distance"].Text = "Distance: " .. distanceText
 end
 
 RunService.RenderStepped:Connect(function()
