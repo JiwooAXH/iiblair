@@ -1,72 +1,69 @@
---// 2D Box ESP Script for Ghost Model
+--// 2D Box ESP for Ghost Model
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
--- Function to create ESP lines
-local function createESPLine()
-    local line = Drawing.new("Line")
-    line.Color = Color3.fromRGB(0, 255, 0) -- Green
-    line.Thickness = 2
-    line.Transparency = 1
-    return line
-end
-
--- Function to update 2D Box ESP
-local function updateBoxESP(model, lines)
-    if not model:IsA("Model") then return end
-    local primaryPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
-    if not primaryPart then return end
+local function CreateESP(Model)
+    -- Create four separate lines for the box outline
+    local TopLine = Drawing.new("Line")
+    local BottomLine = Drawing.new("Line")
+    local LeftLine = Drawing.new("Line")
+    local RightLine = Drawing.new("Line")
     
-    local camera = workspace.CurrentCamera
-    local size = primaryPart.Size * 2 -- Adjust size scale
-    local corners3D = {
-        primaryPart.Position + Vector3.new(size.X / 2, size.Y / 2, 0),
-        primaryPart.Position + Vector3.new(-size.X / 2, size.Y / 2, 0),
-        primaryPart.Position + Vector3.new(-size.X / 2, -size.Y / 2, 0),
-        primaryPart.Position + Vector3.new(size.X / 2, -size.Y / 2, 0)
-    }
+    -- Box color
+    local BoxColor = Color3.fromRGB(200, 200, 200) -- Light gray outline
     
-    local corners2D = {}
-    local onScreen = true
-    for i, corner in ipairs(corners3D) do
-        local screenPos, visible = camera:WorldToViewportPoint(corner)
-        if not visible then onScreen = false end
-        corners2D[i] = Vector2.new(screenPos.X, screenPos.Y)
+    -- Configure properties for all lines
+    for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
+        Line.Color = BoxColor
+        Line.Thickness = 1.5 -- Thinner outline for a modern look
     end
     
-    if onScreen then
-        for i = 1, 4 do
-            local nextIndex = (i % 4) + 1
-            lines[i].From = corners2D[i]
-            lines[i].To = corners2D[nextIndex]
-            lines[i].Visible = true
+    local function UpdateESP()
+        if not Model or not Model:IsDescendantOf(workspace) then
+            for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
+                Line.Visible = false
+            end
+            return
         end
-    else
-        for i = 1, 4 do
-            lines[i].Visible = false
+        
+        local PrimaryPart = Model.PrimaryPart or Model:FindFirstChildOfClass("BasePart")
+        if not PrimaryPart then return end
+        
+        local Vector, OnScreen = Camera:WorldToViewportPoint(PrimaryPart.Position)
+        if OnScreen then
+            local SizeY = math.clamp(3000 / Vector.Z, 30, 120) -- Dynamic box size
+            local SizeX = SizeY * 0.5
+            local Position = Vector2.new(Vector.X - SizeX / 2, Vector.Y - SizeY / 2)
+            
+            -- Define box outline
+            TopLine.From = Position
+            TopLine.To = Position + Vector2.new(SizeX, 0)
+            
+            BottomLine.From = Position + Vector2.new(0, SizeY)
+            BottomLine.To = BottomLine.From + Vector2.new(SizeX, 0)
+            
+            LeftLine.From = Position
+            LeftLine.To = Position + Vector2.new(0, SizeY)
+            
+            RightLine.From = Position + Vector2.new(SizeX, 0)
+            RightLine.To = RightLine.From + Vector2.new(0, SizeY)
+            
+            for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
+                Line.Visible = true
+            end
+        else
+            for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
+                Line.Visible = false
+            end
         end
     end
+    
+    RunService.RenderStepped:Connect(UpdateESP)
 end
 
--- Main loop to track the Ghost model
-local ESPStorage = {}
 RunService.RenderStepped:Connect(function()
-    local ghost = workspace:FindFirstChild("Ghost")
-    if ghost and ghost:IsA("Model") then
-        if not ESPStorage[ghost] then
-            ESPStorage[ghost] = {}
-            for _ = 1, 4 do -- Create 4 lines for the 2D box
-                table.insert(ESPStorage[ghost], createESPLine())
-            end
-        end
-        updateBoxESP(ghost, ESPStorage[ghost])
-    else
-        for _, lines in pairs(ESPStorage) do
-            for _, line in ipairs(lines) do
-                line:Remove()
-            end
-        end
-        ESPStorage = {}
+    local Ghost = workspace:FindFirstChild("Ghost")
+    if Ghost and Ghost:IsA("Model") then
+        CreateESP(Ghost)
     end
 end)
