@@ -1,0 +1,70 @@
+--// Skeleton ESP Script for Any Model Structure
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Function to create ESP lines
+local function createESPLine()
+    local line = Drawing.new("Line")
+    line.Color = Color3.fromRGB(0, 255, 0) -- Green
+    line.Thickness = 2
+    line.Transparency = 1
+    return line
+end
+
+-- Function to get all parts of a model
+local function getModelParts(model)
+    local parts = {}
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            table.insert(parts, part)
+        end
+    end
+    return parts
+end
+
+-- Function to update ESP skeleton
+local function updateSkeleton(model, lines)
+    local parts = getModelParts(model)
+    if #parts < 2 then return end -- Need at least two parts to draw lines
+    
+    for i = 1, #parts - 1 do
+        local p1, p2 = parts[i], parts[i + 1]
+        if p1 and p2 then
+            local screenPos1, onScreen1 = workspace.CurrentCamera:WorldToViewportPoint(p1.Position)
+            local screenPos2, onScreen2 = workspace.CurrentCamera:WorldToViewportPoint(p2.Position)
+            if onScreen1 and onScreen2 then
+                lines[i].From = Vector2.new(screenPos1.X, screenPos1.Y)
+                lines[i].To = Vector2.new(screenPos2.X, screenPos2.Y)
+                lines[i].Visible = true
+            else
+                lines[i].Visible = false
+            end
+        end
+    end
+end
+
+-- Main loop to track the Ghost model
+local ESPStorage = {}
+RunService.RenderStepped:Connect(function()
+    local ghost = workspace:FindFirstChild("Ghost")
+    if ghost and ghost:IsA("Model") then
+        local parts = getModelParts(ghost)
+        if #parts >= 2 then
+            if not ESPStorage[ghost] then
+                ESPStorage[ghost] = {}
+                for i = 1, #parts - 1 do
+                    table.insert(ESPStorage[ghost], createESPLine())
+                end
+            end
+            updateSkeleton(ghost, ESPStorage[ghost])
+        end
+    else
+        for _, lines in pairs(ESPStorage) do
+            for _, line in ipairs(lines) do
+                line:Remove()
+            end
+        end
+        ESPStorage = {}
+    end
+end)
