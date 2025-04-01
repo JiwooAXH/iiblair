@@ -1,0 +1,63 @@
+--// Box ESP Script for Ghost Model
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Function to create ESP lines
+local function createESPLine()
+    local line = Drawing.new("Line")
+    line.Color = Color3.fromRGB(0, 255, 0) -- Green
+    line.Thickness = 2
+    line.Transparency = 1
+    return line
+end
+
+-- Function to update ESP box
+local function updateBoxESP(model, lines)
+    if not model:IsA("Model") then return end
+    local primaryPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
+    if not primaryPart then return end
+    
+    local size = primaryPart.Size * 1.5 -- Scale box size
+    local corners = {
+        primaryPart.Position + Vector3.new(size.X, size.Y, 0),
+        primaryPart.Position + Vector3.new(-size.X, size.Y, 0),
+        primaryPart.Position + Vector3.new(-size.X, -size.Y, 0),
+        primaryPart.Position + Vector3.new(size.X, -size.Y, 0)
+    }
+    
+    for i = 1, 4 do
+        local nextIndex = (i % 4) + 1
+        local screenPos1, onScreen1 = workspace.CurrentCamera:WorldToViewportPoint(corners[i])
+        local screenPos2, onScreen2 = workspace.CurrentCamera:WorldToViewportPoint(corners[nextIndex])
+        if onScreen1 and onScreen2 then
+            lines[i].From = Vector2.new(screenPos1.X, screenPos1.Y)
+            lines[i].To = Vector2.new(screenPos2.X, screenPos2.Y)
+            lines[i].Visible = true
+        else
+            lines[i].Visible = false
+        end
+    end
+end
+
+-- Main loop to track the Ghost model
+local ESPStorage = {}
+RunService.RenderStepped:Connect(function()
+    local ghost = workspace:FindFirstChild("Ghost")
+    if ghost and ghost:IsA("Model") then
+        if not ESPStorage[ghost] then
+            ESPStorage[ghost] = {}
+            for _ = 1, 4 do -- Create 4 lines for the box
+                table.insert(ESPStorage[ghost], createESPLine())
+            end
+        end
+        updateBoxESP(ghost, ESPStorage[ghost])
+    else
+        for _, lines in pairs(ESPStorage) do
+            for _, line in ipairs(lines) do
+                line:Remove()
+            end
+        end
+        ESPStorage = {}
+    end
+end)
