@@ -1,8 +1,11 @@
---// 2D Box ESP for Ghost Model
+--// Optimized 2D Box ESP for Ghost Model
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
+local ESPObjects = {}
 
 local function CreateESP(Model)
+    if ESPObjects[Model] then return end -- Prevent duplicate ESP
+    
     -- Create four separate lines for the box outline
     local TopLine = Drawing.new("Line")
     local BottomLine = Drawing.new("Line")
@@ -16,54 +19,57 @@ local function CreateESP(Model)
     for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
         Line.Color = BoxColor
         Line.Thickness = 1.5 -- Thinner outline for a modern look
+        Line.Visible = false
     end
     
-    local function UpdateESP()
-        if not Model or not Model:IsDescendantOf(workspace) then
-            for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
-                Line.Visible = false
-            end
-            return
-        end
-        
-        local PrimaryPart = Model.PrimaryPart or Model:FindFirstChildOfClass("BasePart")
-        if not PrimaryPart then return end
-        
-        local Vector, OnScreen = Camera:WorldToViewportPoint(PrimaryPart.Position)
-        if OnScreen then
-            local SizeY = math.clamp(3000 / Vector.Z, 30, 120) -- Dynamic box size
-            local SizeX = SizeY * 0.5
-            local Position = Vector2.new(Vector.X - SizeX / 2, Vector.Y - SizeY / 2)
-            
-            -- Define box outline
-            TopLine.From = Position
-            TopLine.To = Position + Vector2.new(SizeX, 0)
-            
-            BottomLine.From = Position + Vector2.new(0, SizeY)
-            BottomLine.To = BottomLine.From + Vector2.new(SizeX, 0)
-            
-            LeftLine.From = Position
-            LeftLine.To = Position + Vector2.new(0, SizeY)
-            
-            RightLine.From = Position + Vector2.new(SizeX, 0)
-            RightLine.To = RightLine.From + Vector2.new(0, SizeY)
-            
-            for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
-                Line.Visible = true
-            end
-        else
-            for _, Line in pairs({TopLine, BottomLine, LeftLine, RightLine}) do
-                Line.Visible = false
-            end
-        end
-    end
-    
-    RunService.RenderStepped:Connect(UpdateESP)
+    ESPObjects[Model] = {TopLine, BottomLine, LeftLine, RightLine}
 end
 
-RunService.RenderStepped:Connect(function()
+local function UpdateESP()
     local Ghost = workspace:FindFirstChild("Ghost")
-    if Ghost and Ghost:IsA("Model") then
-        CreateESP(Ghost)
+    if not Ghost or not Ghost:IsA("Model") then
+        for Model, Lines in pairs(ESPObjects) do
+            for _, Line in pairs(Lines) do
+                Line.Visible = false
+            end
+            ESPObjects[Model] = nil
+        end
+        return
     end
-end)
+    
+    CreateESP(Ghost) -- Ensure ESP exists
+    local PrimaryPart = Ghost.PrimaryPart or Ghost:FindFirstChildOfClass("BasePart")
+    if not PrimaryPart then return end
+    
+    local Vector, OnScreen = Camera:WorldToViewportPoint(PrimaryPart.Position)
+    local Lines = ESPObjects[Ghost]
+    
+    if OnScreen then
+        local SizeY = math.clamp(3000 / Vector.Z, 30, 120) -- Dynamic box size
+        local SizeX = SizeY * 0.5
+        local Position = Vector2.new(Vector.X - SizeX / 2, Vector.Y - SizeY / 2)
+        
+        -- Define box outline
+        Lines[1].From = Position
+        Lines[1].To = Position + Vector2.new(SizeX, 0)
+        
+        Lines[2].From = Position + Vector2.new(0, SizeY)
+        Lines[2].To = Lines[2].From + Vector2.new(SizeX, 0)
+        
+        Lines[3].From = Position
+        Lines[3].To = Position + Vector2.new(0, SizeY)
+        
+        Lines[4].From = Position + Vector2.new(SizeX, 0)
+        Lines[4].To = Lines[4].From + Vector2.new(0, SizeY)
+        
+        for _, Line in pairs(Lines) do
+            Line.Visible = true
+        end
+    else
+        for _, Line in pairs(Lines) do
+            Line.Visible = false
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(UpdateESP)
