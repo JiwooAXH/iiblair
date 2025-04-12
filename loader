@@ -1,0 +1,32 @@
+-- FULBRIGHT 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/FULBRIGHT", true))()
+
+-- Ghost Room
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/ghostRoom", true))()
+
+-- Ghost Info Tracking 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/ghost-Info-Tracking", true))()
+
+-- GHOST HL, PLAYER HL, CURSE OBJECT 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/GhostHL-CurseObject", true))()
+
+-- No Lag Photo Camera 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/No-Lag-Camera", true))()
+
+-- PC HOTKEY TPWALK (LEFTSHIFT)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/PC%20HOTKEY%20TPWALK%20(Leftshift)", true))()
+
+-- Player Highlight 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/playerOutline", true))()
+
+-- TPWALK MOBILE (HOLD BUTTON)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/Mobile%20GUi%20button%20TPWalk", true))()
+
+-- Infinite Stamina 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/Infinite%20Stamina", true))()
+
+-- Candle Label
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/Candle-Label", true))()
+
+-- Ghost Skeleton ESP
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JiwooAXH/iiblair/main/Ghost%20Skeleton%20ESP", true))()
